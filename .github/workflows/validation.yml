@@ -1,0 +1,34 @@
+name: Self-Healing Deploy
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'frontend/index.html'
+      - 'check-html.py'
+      - '.github/workflows/validation.yml'
+
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate HTML
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate application HTML
+        run: python check-html.py frontend/index.html

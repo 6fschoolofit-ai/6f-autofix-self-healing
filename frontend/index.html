@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>6F AutoFix Agent</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1220; --panel:#121d30; --line:#26364f; --muted:#9aabc2; --cyan:#39c6d6; --green:#35c58a; --red:#ef6b73; }
+    * { box-sizing:border-box }
+    body { margin:0; font:15px/1.5 Inter,system-ui,Arial,sans-serif; background:var(--bg); color:#edf4ff }
+    header { padding:28px max(22px,calc((100% - 1100px)/2)); border-bottom:1px solid var(--line); background:#0e192a }
+    header small { color:var(--cyan); letter-spacing:.12em; font-weight:700 }
+    h1 { margin:5px 0 0; font-size:clamp(25px,4vw,36px) }
+    main { max-width:1100px; margin:28px auto; padding:0 20px }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:15px }
+    .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:19px }
+    .label { color:var(--muted); font-size:13px }
+    .value { font-size:23px; font-weight:700; margin-top:7px; overflow-wrap:anywhere }
+    .status { display:inline-block; border-radius:99px; padding:4px 10px; font-size:12px; background:#1b3d36; color:#76e0b4 }
+    .muted { color:var(--muted) }
+    table { width:100%; border-collapse:collapse; margin-top:10px; font-size:14px }
+    th,td { text-align:left; padding:12px 9px; border-bottom:1px solid var(--line); vertical-align:top }
+    th { color:var(--muted); font-weight:600 }
+    a { color:var(--cyan); text-decoration:none }
+    .empty { padding:24px 8px; color:var(--muted); text-align:center }
+    footer { max-width:1100px; margin:28px auto; padding:0 20px 30px; color:var(--muted); font-size:12px }
+    @media(max-width:600px){ th:nth-child(3),td:nth-child(3){display:none} }
+  </style>
+</head>
+<body>
+  <!-- SITE-OK -->
+  <header>
+    <small>6F SCHOOL OF IT · SELF-HEALING CI/CD</small>
+    <h1>AutoFix Agent Dashboard</h1>
+    <p class="muted">EC2-hosted repair agent · GitHub Actions failure monitoring</p>
+  </header>
+  <main>
+    <section class="grid">
+      <div class="card"><div class="label">Agent status</div><div class="value" id="agentStatus">Checking…</div></div>
+      <div class="card"><div class="label">Repair jobs</div><div class="value" id="jobCount">—</div></div>
+      <div class="card"><div class="label">Pull requests created</div><div class="value" id="prCount">—</div></div>
+    </section>
+    <section class="card" style="margin-top:18px">
+      <h2 style="margin:0;font-size:19px">Recent repair activity</h2>
+      <p class="muted" style="margin:4px 0 10px">Only failed runs of the configured validation workflow are considered.</p>
+      <div id="jobs"><div class="empty">Loading repair history…</div></div>
+    </section>
+  </main>
+  <footer>6F AutoFix · Repairs are submitted as Pull Requests and are never merged automatically.</footer>
+  <script>
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+    async function refresh() {
+      try {
+        const r = await fetch("/api/status", {cache:"no-store"});
+        if (!r.ok) throw new Error("Agent API unavailable");
+        const data = await r.json();
+        document.getElementById("agentStatus").innerHTML = '<span class="status">ONLINE</span>';
+        document.getElementById("jobCount").textContent = data.jobs.length;
+        document.getElementById("prCount").textContent = data.jobs.filter(j => j.pr_url).length;
+        if (!data.jobs.length) {
+          document.getElementById("jobs").innerHTML = '<div class="empty">No repair jobs received yet.</div>';
+          return;
+        }
+        const rows = data.jobs.map(j => `<tr>
+          <td>${esc(j.run_id)}</td><td>${esc(j.status)}</td>
+          <td>${esc(j.updated_at || j.created_at)}</td>
+          <td>${j.pr_url ? `<a href="${esc(j.pr_url)}" target="_blank" rel="noopener">Open PR ↗</a>` : esc(j.message || "—")}</td>
+        </tr>`).join("");
+        document.getElementById("jobs").innerHTML = `<table><thead><tr><th>Run ID</th><th>Status</th><th>Updated</th><th>Result</th></tr></thead><tbody>${rows}</tbody></table>`;
+      } catch (e) {
+        document.getElementById("agentStatus").innerHTML = '<span style="color:var(--red)">OFFLINE</span>';
+        document.getElementById("jobs").innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+      }
+    }
+    refresh(); setInterval(refresh, 10000);
+  </script>
+</body>
+</html>
